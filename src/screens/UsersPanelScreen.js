@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, ActivityIndicator, TouchableOpacity, StyleSheet } from 'react-native';
-import { supabase, fetchRegisteredUsers } from '../lib/supabase';
+import { supabase, fetchRegisteredUsers, deleteRegisteredUser } from '../lib/supabase';
 
 export default function UsersPanelScreen({ currentUser, onGoToCatalogAdmin }) {
   const [users, setUsers] = useState([]);
@@ -40,6 +40,11 @@ export default function UsersPanelScreen({ currentUser, onGoToCatalogAdmin }) {
       supabase.removeChannel(channel);
     };
   }, [loadUsers]);
+
+  const handleDeleteUser = async (userId) => {
+    await deleteRegisteredUser(userId);
+    loadUsers();
+  };
 
   if (loading) {
     return (
@@ -97,7 +102,17 @@ export default function UsersPanelScreen({ currentUser, onGoToCatalogAdmin }) {
                 </View>
               </View>
               <Text style={styles.detail}>✉️ {u.correo}</Text>
-              <Text style={styles.detail}>📞 {u.telefono}</Text>
+              <View style={styles.bottomRow}>
+                <Text style={styles.detail}>📞 {u.telefono}</Text>
+                {isAdmin ? (
+                  <TouchableOpacity
+                    style={styles.deleteUserBtn}
+                    onPress={() => handleDeleteUser(u.id)}
+                  >
+                    <Text style={styles.deleteUserText}>🗑️ Eliminar</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
             </View>
           </View>
         );
@@ -214,6 +229,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  bottomRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 2,
+  },
   userName: {
     fontSize: 15,
     fontWeight: '800',
@@ -236,5 +257,18 @@ const styles = StyleSheet.create({
   detail: {
     fontSize: 13,
     color: '#475569',
+  },
+  deleteUserBtn: {
+    backgroundColor: '#fef2f2',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  deleteUserText: {
+    color: '#dc2626',
+    fontSize: 11,
+    fontWeight: '700',
   },
 });

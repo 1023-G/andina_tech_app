@@ -11,10 +11,10 @@ const supabaseAnonKey =
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Nuevo namespace limpio (deja en 0 la lista de usuarios descartando los de prueba anteriores)
-const USER_PREFIX = '__ANDINA_USER_V2__::';
-const LEGACY_USER_PREFIX = '__USER_ACCOUNT__::';
+const USER_PREFIX = '__ANDINA_USER_V3__::';
+const LEGACY_USER_PREFIXES = ['__USER_ACCOUNT__::', '__ANDINA_USER_V2__::'];
 const DELETED_PRODUCT_PREFIX = '__DELETED_PRODUCT__::';
+const DELETED_USER_PREFIX = '__DELETED_USER__::';
 
 /**
  * Convierte una fila de respaldo en `productos` a un objeto de usuario
@@ -59,10 +59,12 @@ export async function fetchCatalogProducts() {
 
   const cleanProducts = data.filter((item) => {
     const desc = String(item.descripcion || '');
+    const isLegacyUser = LEGACY_USER_PREFIXES.some((p) => desc.startsWith(p));
     return (
       !desc.startsWith(USER_PREFIX) &&
-      !desc.startsWith(LEGACY_USER_PREFIX) &&
+      !isLegacyUser &&
       !desc.startsWith(DELETED_PRODUCT_PREFIX) &&
+      !desc.startsWith(DELETED_USER_PREFIX) &&
       item.nombre !== 'Test' &&
       !deletedIds.has(Number(item.id))
     );
@@ -98,12 +100,28 @@ export async function createCatalogProduct({ nombre, descripcion, precio, imagen
  * Elimina un producto del catálogo por ID (para Administradores)
  */
 export async function deleteCatalogProduct(productId) {
-  // Intentar borrado directo y además registrar baja lógica en la nube por si RLS restringe DELETE
   await supabase.from('productos').delete().eq('id', productId);
   const { error } = await supabase.from('productos').insert([
     {
       nombre: `[BAJA] ${productId}`,
       descripcion: `${DELETED_PRODUCT_PREFIX}${productId}`,
+      precio: 0,
+      imagen_url: 'https://images.unsplash.com/photo-1526738549149-8e07eca6c147?w=100',
+    },
+  ]);
+
+  return { error };
+}
+
+/**
+ * Elimina un usuario registrado por ID (para Administradores)
+ */
+export async function deleteRegisteredUser(userId) {
+  await supabase.from('usuarios_app').delete().eq('id', userId);
+  const { error } = await supabase.from('productos').insert([
+    {
+      nombre: `[BAJA_USUARIO] ${userId}`,
+      descripcion: `${DELETED_USER_PREFIX}${userId}`,
       precio: 0,
       imagen_url: 'https://images.unsplash.com/photo-1526738549149-8e07eca6c147?w=100',
     },
@@ -125,7 +143,6 @@ export async function registerUserAccount({ nombre_completo, correo, telefono, r
     password,
   };
 
-  // 1. Intentar en la tabla principal `usuarios_app`
   const { error } = await supabase.from('usuarios_app').insert([payload]);
 
   if (!error) {
@@ -136,7 +153,6 @@ export async function registerUserAccount({ nombre_completo, correo, telefono, r
     return { error: { code: '23505', message: 'Ese correo ya está registrado.' } };
   }
 
-  // 2. Respaldo persistente en la nube
   const existingUsers = await fetchFallbackUsers();
   if (existingUsers.some((u) => u.correo === cleanEmail)) {
     return { error: { code: '23505', message: 'Ese correo ya está registrado.' } };
@@ -163,11 +179,24 @@ async function fetchFallbackUsers() {
   const { data, error } = await supabase
     .from('productos')
     .select('id, nombre, descripcion, created_at')
-    .like('descripcion', `${USER_PREFIX}%`)
     .order('id', { ascending: false });
 
   if (error || !data) return [];
-  return data.map(parseFallbackUserRow).filter(Boolean);
+
+  const deletedUserIds = new Set(
+    data
+      .filter((item) => String(item.descripcion || '').startsWith(DELETED_USER_PREFIX))
+      .map((item) => Number(String(item.descripcion).slice(DELETED_USER_PREFIX.length)))
+  );
+
+  return data
+    .filter(
+      (item) =>
+        String(item.descripcion || '').startsWith(USER_PREFIX) &&
+        !deletedUserIds.has(Number(item.id))
+    )
+    .map(parseFallbackUserRow)
+    .filter(Boolean);
 }
 
 /**
