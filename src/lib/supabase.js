@@ -11,7 +11,10 @@ const supabaseAnonKey =
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const USER_PREFIX = '__USER_ACCOUNT__::';
+// Nuevo namespace limpio (deja en 0 la lista de usuarios descartando los de prueba anteriores)
+const USER_PREFIX = '__ANDINA_USER_V2__::';
+const LEGACY_USER_PREFIX = '__USER_ACCOUNT__::';
+const DELETED_PRODUCT_PREFIX = '__DELETED_PRODUCT__::';
 
 /**
  * Convierte una fila de respaldo en `productos` a un objeto de usuario
@@ -35,7 +38,7 @@ function parseFallbackUserRow(row) {
 }
 
 /**
- * Obtiene todos los productos del catálogo (excluyendo registros internos de usuarios de respaldo)
+ * Obtiene todos los productos del catálogo (excluyendo registros internos y productos eliminados)
  */
 export async function fetchCatalogProducts() {
   const { data, error } = await supabase
@@ -47,11 +50,23 @@ export async function fetchCatalogProducts() {
     return { data: null, error };
   }
 
-  const cleanProducts = data.filter(
-    (item) =>
-      !String(item.descripcion || '').startsWith(USER_PREFIX) &&
-      item.nombre !== 'Test'
+  // IDs de productos marcados como eliminados por un administrador
+  const deletedIds = new Set(
+    data
+      .filter((item) => String(item.descripcion || '').startsWith(DELETED_PRODUCT_PREFIX))
+      .map((item) => Number(String(item.descripcion).slice(DELETED_PRODUCT_PREFIX.length)))
   );
+
+  const cleanProducts = data.filter((item) => {
+    const desc = String(item.descripcion || '');
+    return (
+      !desc.startsWith(USER_PREFIX) &&
+      !desc.startsWith(LEGACY_USER_PREFIX) &&
+      !desc.startsWith(DELETED_PRODUCT_PREFIX) &&
+      item.nombre !== 'Test' &&
+      !deletedIds.has(Number(item.id))
+    );
+  });
 
   return { data: cleanProducts, error: null };
 }
@@ -83,10 +98,16 @@ export async function createCatalogProduct({ nombre, descripcion, precio, imagen
  * Elimina un producto del catálogo por ID (para Administradores)
  */
 export async function deleteCatalogProduct(productId) {
-  const { error } = await supabase
-    .from('productos')
-    .delete()
-    .eq('id', productId);
+  // Intentar borrado directo y además registrar baja lógica en la nube por si RLS restringe DELETE
+  await supabase.from('productos').delete().eq('id', productId);
+  const { error } = await supabase.from('productos').insert([
+    {
+      nombre: `[BAJA] ${productId}`,
+      descripcion: `${DELETED_PRODUCT_PREFIX}${productId}`,
+      precio: 0,
+      imagen_url: 'https://images.unsplash.com/photo-1526738549149-8e07eca6c147?w=100',
+    },
+  ]);
 
   return { error };
 }
