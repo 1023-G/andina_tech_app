@@ -2,9 +2,14 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, ActivityIndicator, TouchableOpacity, StyleSheet } from 'react-native';
 import { supabase, fetchRegisteredUsers } from '../lib/supabase';
 
-export default function UsersPanelScreen({ currentUser }) {
+export default function UsersPanelScreen({ currentUser, onGoToCatalogAdmin }) {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const isAdmin =
+    currentUser &&
+    (String(currentUser.rol || '').toLowerCase() === 'administrador' ||
+      String(currentUser.rol || '').toLowerCase() === 'asesor');
 
   const loadUsers = useCallback(async () => {
     const { data, error } = await fetchRegisteredUsers();
@@ -58,9 +63,17 @@ export default function UsersPanelScreen({ currentUser }) {
           </TouchableOpacity>
         </View>
         <Text style={styles.subheading}>
-          Hola, <Text style={styles.boldName}>{currentUser.nombre_completo}</Text>. Actualmente hay{' '}
-          {users.length} miembro(s) registrado(s) en la plataforma.
+          Hola, <Text style={styles.boldName}>{currentUser.nombre_completo}</Text> ({currentUser.rol}).
+          Actualmente hay {users.length} miembro(s) registrado(s) en la plataforma.
         </Text>
+
+        {isAdmin && onGoToCatalogAdmin ? (
+          <TouchableOpacity style={styles.adminActionBtn} onPress={onGoToCatalogAdmin}>
+            <Text style={styles.adminActionText}>
+              ➕ Ir al Catálogo para Agregar o Eliminar Artículos
+            </Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       {users.map((u) => {
@@ -109,7 +122,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#e0e7ff',
-    gap: 6,
+    gap: 8,
   },
   headerTopRow: {
     flexDirection: 'row',
@@ -149,6 +162,19 @@ const styles = StyleSheet.create({
   boldName: {
     color: '#1e1b4b',
     fontWeight: '700',
+  },
+  adminActionBtn: {
+    backgroundColor: '#4f46e5',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  adminActionText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '800',
   },
   helperText: {
     color: '#475569',

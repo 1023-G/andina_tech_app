@@ -8,15 +8,49 @@ import NavBar from './src/components/NavBar';
 import Footer from './src/components/Footer';
 
 import CatalogScreen from './src/screens/CatalogScreen';
+import CartScreen from './src/screens/CartScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import UsersPanelScreen from './src/screens/UsersPanelScreen';
 
 export default function App() {
-  // 'catalog' | 'register' | 'login' | 'users'
+  // 'catalog' | 'cart' | 'register' | 'login' | 'users'
   const [currentRoute, setCurrentRoute] = useState('catalog');
   const [menuOpen, setMenuOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [cartItems, setCartItems] = useState([]);
+
+  const totalCartUnits = cartItems.reduce((acc, item) => acc + item.quantity, 0);
+
+  const handleAddToCart = (product) => {
+    setCartItems((prev) => {
+      const exists = prev.find((item) => item.id === product.id);
+      if (exists) {
+        return prev.map((item) =>
+          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+        );
+      }
+      return [...prev, { ...product, quantity: 1 }];
+    });
+  };
+
+  const handleDecrementFromCart = (productId) => {
+    setCartItems((prev) =>
+      prev
+        .map((item) =>
+          item.id === productId ? { ...item, quantity: item.quantity - 1 } : item
+        )
+        .filter((item) => item.quantity > 0)
+    );
+  };
+
+  const handleRemoveFromCart = (productId) => {
+    setCartItems((prev) => prev.filter((item) => item.id !== productId));
+  };
+
+  const handleClearCart = () => {
+    setCartItems([]);
+  };
 
   const handleNavigate = (route) => {
     if (route === 'users' && !currentUser) {
@@ -41,6 +75,17 @@ export default function App() {
 
   const renderWorkArea = () => {
     switch (currentRoute) {
+      case 'cart':
+        return (
+          <CartScreen
+            cartItems={cartItems}
+            onIncrement={handleAddToCart}
+            onDecrement={handleDecrementFromCart}
+            onRemoveItem={handleRemoveFromCart}
+            onClearCart={handleClearCart}
+            onGoToCatalog={() => setCurrentRoute('catalog')}
+          />
+        );
       case 'register':
         return (
           <RegisterScreen
@@ -57,7 +102,10 @@ export default function App() {
         );
       case 'users':
         return currentUser ? (
-          <UsersPanelScreen currentUser={currentUser} />
+          <UsersPanelScreen
+            currentUser={currentUser}
+            onGoToCatalogAdmin={() => setCurrentRoute('catalog')}
+          />
         ) : (
           <LoginScreen
             onLoginSuccess={handleLoginSuccess}
@@ -66,7 +114,16 @@ export default function App() {
         );
       case 'catalog':
       default:
-        return <CatalogScreen />;
+        return (
+          <CatalogScreen
+            currentUser={currentUser}
+            cartItems={cartItems}
+            onAddToCart={handleAddToCart}
+            onDecrementFromCart={handleDecrementFromCart}
+            onRemoveFromCart={handleRemoveFromCart}
+            onOpenCart={() => setCurrentRoute('cart')}
+          />
+        );
     }
   };
 
@@ -84,6 +141,7 @@ export default function App() {
         <NavBar
           currentRoute={currentRoute}
           isAuthenticated={Boolean(currentUser)}
+          cartCount={totalCartUnits}
           onNavigate={handleNavigate}
           onLogout={handleLogout}
         />
@@ -97,6 +155,7 @@ export default function App() {
             visible={menuOpen}
             currentRoute={currentRoute}
             currentUser={currentUser}
+            cartCount={totalCartUnits}
             onClose={() => setMenuOpen(false)}
             onNavigate={handleNavigate}
             onLogout={handleLogout}

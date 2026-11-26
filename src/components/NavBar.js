@@ -1,7 +1,13 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
-export default function NavBar({ currentRoute, isAuthenticated, onNavigate, onLogout }) {
+export default function NavBar({
+  currentRoute,
+  isAuthenticated,
+  cartCount = 0,
+  onNavigate,
+  onLogout,
+}) {
   return (
     <View style={styles.navBar}>
       <TouchableOpacity
@@ -13,6 +19,15 @@ export default function NavBar({ currentRoute, isAuthenticated, onNavigate, onLo
         </Text>
       </TouchableOpacity>
 
+      <TouchableOpacity
+        style={[styles.navItem, currentRoute === 'cart' && styles.activeItem]}
+        onPress={() => onNavigate('cart')}
+      >
+        <Text style={[styles.navText, currentRoute === 'cart' && styles.activeText]}>
+          🛒 Carrito{cartCount > 0 ? ` (${cartCount})` : ''}
+        </Text>
+      </TouchableOpacity>
+
       {!isAuthenticated ? (
         <>
           <TouchableOpacity
@@ -20,7 +35,7 @@ export default function NavBar({ currentRoute, isAuthenticated, onNavigate, onLo
             onPress={() => onNavigate('login')}
           >
             <Text style={[styles.navText, currentRoute === 'login' && styles.activeText]}>
-              🔐 Ingresar
+              🔐 Login
             </Text>
           </TouchableOpacity>
 
@@ -56,17 +71,17 @@ export default function NavBar({ currentRoute, isAuthenticated, onNavigate, onLo
 const styles = StyleSheet.create({
   navBar: {
     backgroundColor: '#312e81',
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: 6,
   },
   navItem: {
     flex: 1,
     paddingVertical: 8,
-    paddingHorizontal: 10,
+    paddingHorizontal: 6,
     borderRadius: 9,
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
@@ -76,7 +91,7 @@ const styles = StyleSheet.create({
   },
   navText: {
     color: '#e0e7ff',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
   },
   activeText: {
@@ -85,13 +100,13 @@ const styles = StyleSheet.create({
   logoutBtn: {
     backgroundColor: '#ef4444',
     paddingVertical: 8,
-    paddingHorizontal: 14,
+    paddingHorizontal: 10,
     borderRadius: 9,
     alignItems: 'center',
   },
   logoutText: {
     color: '#ffffff',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
   },
 });

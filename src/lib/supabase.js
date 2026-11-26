@@ -41,7 +41,7 @@ export async function fetchCatalogProducts() {
   const { data, error } = await supabase
     .from('productos')
     .select('id, nombre, descripcion, precio, imagen_url')
-    .order('id', { ascending: true });
+    .order('id', { ascending: false });
 
   if (error || !data) {
     return { data: null, error };
@@ -54,6 +54,41 @@ export async function fetchCatalogProducts() {
   );
 
   return { data: cleanProducts, error: null };
+}
+
+/**
+ * Crea un nuevo producto en la base de datos (para Administradores)
+ */
+export async function createCatalogProduct({ nombre, descripcion, precio, imagen_url }) {
+  const payload = {
+    nombre: nombre.trim(),
+    descripcion: descripcion.trim(),
+    precio: Number(precio) || 0,
+    imagen_url:
+      imagen_url && imagen_url.trim()
+        ? imagen_url.trim()
+        : 'https://images.unsplash.com/photo-1526738549149-8e07eca6c147?w=800',
+  };
+
+  const { data, error } = await supabase
+    .from('productos')
+    .insert([payload])
+    .select()
+    .single();
+
+  return { data, error };
+}
+
+/**
+ * Elimina un producto del catálogo por ID (para Administradores)
+ */
+export async function deleteCatalogProduct(productId) {
+  const { error } = await supabase
+    .from('productos')
+    .delete()
+    .eq('id', productId);
+
+  return { error };
 }
 
 /**
@@ -76,12 +111,11 @@ export async function registerUserAccount({ nombre_completo, correo, telefono, r
     return { error: null };
   }
 
-  // Si el error es correo duplicado en `usuarios_app`
   if (error.code === '23505') {
     return { error: { code: '23505', message: 'Ese correo ya está registrado.' } };
   }
 
-  // 2. Si la tabla `usuarios_app` no existe o tiene bloqueo RLS, guardar de forma persistente en la nube
+  // 2. Respaldo persistente en la nube
   const existingUsers = await fetchFallbackUsers();
   if (existingUsers.some((u) => u.correo === cleanEmail)) {
     return { error: { code: '23505', message: 'Ese correo ya está registrado.' } };
@@ -91,7 +125,9 @@ export async function registerUserAccount({ nombre_completo, correo, telefono, r
     nombre: `[USUARIO] ${payload.nombre_completo}`,
     descripcion: `${USER_PREFIX}${JSON.stringify(payload)}`,
     precio: 0,
-    imagen_url: 'https://ui-avatars.com/api/?background=4f46e5&color=fff&name=' + encodeURIComponent(payload.nombre_completo),
+    imagen_url:
+      'https://ui-avatars.com/api/?background=4f46e5&color=fff&name=' +
+      encodeURIComponent(payload.nombre_completo),
   };
 
   const { error: fbError } = await supabase.from('productos').insert([fallbackRow]);
@@ -119,7 +155,6 @@ async function fetchFallbackUsers() {
 export async function loginUserAccount(correo, password) {
   const cleanEmail = correo.trim().toLowerCase();
 
-  // 1. Intentar en `usuarios_app`
   const { data, error } = await supabase
     .from('usuarios_app')
     .select('id, nombre_completo, correo, telefono, rol')
@@ -131,7 +166,6 @@ export async function loginUserAccount(correo, password) {
     return { data, error: null };
   }
 
-  // 2. Buscar en el almacenamiento en la nube de respaldo
   const fbUsers = await fetchFallbackUsers();
   const matched = fbUsers.find(
     (u) => u.correo === cleanEmail && u.password === password

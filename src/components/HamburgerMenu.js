@@ -5,6 +5,7 @@ export default function HamburgerMenu({
   visible,
   currentRoute,
   currentUser,
+  cartCount = 0,
   onClose,
   onNavigate,
   onLogout,
@@ -47,7 +48,20 @@ export default function HamburgerMenu({
             <Text style={[styles.optionText, currentRoute === 'catalog' && styles.optionTextActive]}>
               Catálogo Público (Index)
             </Text>
-            <Text style={styles.optionHint}>Ver productos disponibles</Text>
+            <Text style={styles.optionHint}>Ver y seleccionar artículos</Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.option, currentRoute === 'cart' && styles.optionActive]}
+          onPress={() => onNavigate('cart')}
+        >
+          <Text style={styles.optionIcon}>🛒</Text>
+          <View style={styles.optionContent}>
+            <Text style={[styles.optionText, currentRoute === 'cart' && styles.optionTextActive]}>
+              Mi Carrito ({cartCount})
+            </Text>
+            <Text style={styles.optionHint}>Revisar o quitar productos</Text>
           </View>
         </TouchableOpacity>
 
@@ -62,7 +76,7 @@ export default function HamburgerMenu({
                 <Text style={[styles.optionText, currentRoute === 'login' && styles.optionTextActive]}>
                   Iniciar Sesión
                 </Text>
-                <Text style={styles.optionHint}>Acceso para miembros registrados</Text>
+                <Text style={styles.optionHint}>Acceso para miembros y admin</Text>
               </View>
             </TouchableOpacity>
 
@@ -217,10 +231,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingVertical: 12,
+    paddingVertical: 11,
     paddingHorizontal: 14,
     borderRadius: 12,
-    marginBottom: 10,
+    marginBottom: 8,
     backgroundColor: '#f8fafc',
     borderWidth: 1,
     borderColor: '#f1f5f9',
@@ -236,7 +250,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   optionText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     color: '#1e293b',
   },
@@ -252,8 +266,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginTop: 12,
-    paddingVertical: 12,
+    marginTop: 10,
+    paddingVertical: 11,
     paddingHorizontal: 14,
     borderRadius: 12,
     backgroundColor: '#fef2f2',
@@ -261,7 +275,7 @@ const styles = StyleSheet.create({
     borderColor: '#fecaca',
   },
   logoutOptionText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     color: '#dc2626',
   },
